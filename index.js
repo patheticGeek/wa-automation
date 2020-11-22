@@ -45,10 +45,6 @@ async function procMess(message) {
       ) {
         await cl.reply(message.chatId, "Spam protected group", message.id);
       } else {
-        console.log(
-          message.chat.groupMetadata,
-          message.chat.groupMetadata.participants
-        );
         const text = `@${
           message.author.split("@")[0]
         } says hello ${message.chat.groupMetadata.participants.map(
@@ -63,10 +59,6 @@ async function procMess(message) {
       ) {
         await cl.reply(message.chatId, "Spam protected group", message.id);
       } else {
-        console.log(
-          message.chat.groupMetadata,
-          message.chat.groupMetadata.participants
-        );
         const n = parseInt(message.body.replace("#spam ", ""));
         const text = `@${
           message.author.split("@")[0]
@@ -173,6 +165,7 @@ server.listen(PORT, () =>
 );
 
 process.on("exit", () => {
-  fs.unlinkSync("./public/qr_code.png");
-  fs.unlinkSync("./session.data.json");
+  if (fs.existsSync("./session.data.json")) {
+    fs.unlinkSync("./session.data.json");
+  }
 });

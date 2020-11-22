@@ -18,13 +18,41 @@ const queue = new PQueue({
  * @param {import("@open-wa/wa-automate").Message} message
  */
 async function procMess(message) {
-  console.log(message);
   if (message.type === "chat") {
     if (message.body.toLowerCase().startsWith("ayy")) {
       await cl.sendText(message.from, "ayy mofo");
+    } else if (
+      message.isGroupMsg &&
+      message.body.toLowerCase() === "spam bitch"
+    ) {
+      const text = `Spam requested by @${
+        message.author.split("@")[0]
+      } ${message.chat.groupMetadata.participants.map(
+        (participant) => `\nHello @${participant.id.split("@")[0]}`
+      )}`;
+      cl.sendTextWithMentions(message.chatId, text);
+    } else if (message.body.startsWith("#google")) {
+      const query = message.body.replace("#google ", "");
+      cl.sendText(
+        message.chatId,
+        `https://www.google.com/search?q=${encodeURIComponent(query)}`
+      );
     } else if (message.body.includes("https://chat.whatsapp.com/")) {
       await cl.joinGroupViaLink(message.body);
       await cl.sendText(message.chatId, "Joined group");
+      cl.sendReplyWithMentions(message.chatId);
+    } else if (
+      message.body === "#sticker" &&
+      message.quotedMsgObj &&
+      message.quotedMsgObj.type === "image"
+    ) {
+      await cl.sendText(message.chatId, "Processing image");
+      const mediaData = await decryptMedia(message.quotedMsgObj);
+      const dataUrl = `data:${
+        message.quotedMsgObj.mimetype
+      };base64,${mediaData.toString("base64")}`;
+      await cl.sendImageAsSticker(message.chatId, dataUrl);
+      await cl.sendText(message.chatId, "Here is your sticker");
     }
   } else if (message.type === "image" && message.caption === "#sticker") {
     await cl.sendText(message.chatId, "Processing image");

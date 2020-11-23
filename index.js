@@ -4,13 +4,14 @@ const { default: PQueue } = require("p-queue");
 const fs = require("fs");
 const express = require("express");
 
+const helpOn = ["hello", "hi", "hii", "hey", "heyy", "#help", "#menu"];
+
 const helpText =
   process.env.HELP_TEXT ||
   `Commands:
 #sticker: caption a image/video/gif to turn it into sticker
 #spam: tag everyone in a message in a group
 #spam {n}: spam n number of times
-@everyone: spam but in a nicer way, works in between a message too
 #join {link}: joing a group with invite link provided
 #google {query}: reply to a message or text with query to help a idot
 #leave: i hope you dont use this if you do make sure youre admin
@@ -24,17 +25,17 @@ const leaveText =
   process.env.LEAVE_TEXT ||
   "Ab unko humshe rishta nhi rakhna hai\nto humari taraf se bhi koi zabardasti nhi hai";
 
-/**
- * WA Client
- * @type {null | import("@open-wa/wa-automate").Client}
- */
-let cl = null;
 const server = express();
 const PORT = parseInt(process.env.PORT) || 3000;
 const queue = new PQueue({
   concurrency: 4,
   autoStart: false,
 });
+/**
+ * WA Client
+ * @type {null | import("@open-wa/wa-automate").Client}
+ */
+let cl = null;
 
 /**
  * Process the message
@@ -42,12 +43,9 @@ const queue = new PQueue({
  */
 async function procMess(message) {
   if (message.type === "chat") {
-    if (message.body === "#help") {
+    if (helpOn.includes(message.body.toLowerCase())) {
       await cl.sendText(message.from, helpText);
-    } else if (
-      message.body.includes("@everyone") ||
-      message.body.startsWith("#spam")
-    ) {
+    } else if (message.body.startsWith("#spam")) {
       if (
         message.chat.groupMetadata.desc &&
         message.chat.groupMetadata.desc.includes("#nospam")
@@ -57,17 +55,28 @@ async function procMess(message) {
         const text = `@${
           message.author.split("@")[0]
         } says hello ${message.chat.groupMetadata.participants.map(
-          (participant) => `\n🌚 @${participant.id.split("@")[0]}`
+          (participant) =>
+            `\n🌚 @${
+              typeof participant.id === "string"
+                ? participant.id.split("@")[0]
+                : participant.user
+            }`
         )}`;
         if (message.body === "#spam") {
           await cl.sendTextWithMentions(message.chatId, text);
         } else {
           const n = parseInt(message.body.replace("#spam ", ""));
-          const messages = [];
-          for (let i = 0; i < n; i++) {
-            messages.push(await cl.sendTextWithMentions(message.chatId, text));
+          if (n < 20) {
+            const messages = [];
+            for (let i = 0; i < n; i++) {
+              messages.push(
+                await cl.sendTextWithMentions(message.chatId, text)
+              );
+            }
+            await Promise.all(messages);
+          } else {
+            await cl.sendText(message.chatId, "Spam limit 20");
           }
-          await Promise.all(messages);
         }
       }
     } else if (message.body.startsWith("#google")) {
@@ -77,7 +86,9 @@ async function procMess(message) {
           : message.body.replace("#google ", "");
       await cl.sendText(
         message.chatId,
-        `https://www.google.com/search?q=${encodeURIComponent(query)}`
+        `Here's something that'll help https://www.google.com/search?q=${encodeURIComponent(
+          query
+        )}`
       );
     } else if (message.body.startsWith("#join https://chat.whatsapp.com/")) {
       await cl.joinGroupViaLink(message.body);
@@ -102,11 +113,18 @@ async function procMess(message) {
     const dataUrl = `data:${message.mimetype};base64,${mediaData.toString(
       "base64"
     )}`;
-    message.type === "image" &&
-      (await cl.sendImageAsSticker(message.chatId, dataUrl));
-    message.type === "video" &&
-      (await cl.sendMp4AsSticker(message.chatId, dataUrl));
-    await cl.sendText(message.chatId, "Here is your sticker");
+    try {
+      message.type === "image" &&
+        (await cl.sendImageAsSticker(message.chatId, dataUrl));
+      message.type === "video" &&
+        (await cl.sendMp4AsSticker(message.chatId, dataUrl));
+      await cl.sendText(message.chatId, "Here is your sticker");
+    } catch (e) {
+      await cl.sendText(
+        message.chatId,
+        e.message || "Sticker size limit is 1Mb"
+      );
+    }
   }
 }
 
@@ -137,6 +155,7 @@ ev.on("qr.**", async (qrcode) => {
 
 create({
   qrTimeout: 0,
+  cacheEnabled: false,
 }).then((client) => start(client));
 
 server.use(express.static("public"));

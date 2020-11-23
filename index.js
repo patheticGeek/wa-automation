@@ -4,19 +4,25 @@ const { default: PQueue } = require("p-queue");
 const fs = require("fs");
 const express = require("express");
 
-const helpText = `Commands:
-#sticker: reply to or caption a image/video/gif to turn it into sticker
+const helpText =
+  process.env.HELP_TEXT ||
+  `Commands:
+#sticker: caption a image/video/gif to turn it into sticker
 #spam: tag everyone in a message in a group
 #spam {n}: spam n number of times
 @everyone: spam but in a nicer way, works in between a message too
-#join {link}: joing a group with invite link
-#google {text}: reply to or to provide a idot with useful links
-#help: To recive this same message
+#join {link}: joing a group with invite link provided
+#google {query}: reply to a message or text with query to help a idot
 #leave: i hope you dont use this if you do make sure youre admin
+#help: To recive this same message
 
 Put '#nospam' in group description to stop spam commands
 Made by: pathetic_geek (https://github.com/patheticGeek)
 `;
+
+const leaveText =
+  process.env.LEAVE_TEXT ||
+  "Ab unko humshe rishta nhi rakhna hai\nto humari taraf se bhi koi zabardasti nhi hai";
 
 /**
  * WA Client
@@ -38,38 +44,31 @@ async function procMess(message) {
   if (message.type === "chat") {
     if (message.body === "#help") {
       await cl.sendText(message.from, helpText);
-    } else if (message.body.includes("@everyone") || message.body === "#spam") {
+    } else if (
+      message.body.includes("@everyone") ||
+      message.body.startsWith("#spam")
+    ) {
       if (
         message.chat.groupMetadata.desc &&
         message.chat.groupMetadata.desc.includes("#nospam")
       ) {
-        await cl.reply(message.chatId, "Spam protected group", message.id);
+        await cl.sendText(message.chatId, "Spam protected group");
       } else {
         const text = `@${
           message.author.split("@")[0]
         } says hello ${message.chat.groupMetadata.participants.map(
           (participant) => `\n🌚 @${participant.id.split("@")[0]}`
         )}`;
-        await cl.sendTextWithMentions(message.chatId, text);
-      }
-    } else if (message.body.startsWith("#spam ")) {
-      if (
-        message.chat.groupMetadata.desc &&
-        message.chat.groupMetadata.desc.includes("#nospam")
-      ) {
-        await cl.reply(message.chatId, "Spam protected group", message.id);
-      } else {
-        const n = parseInt(message.body.replace("#spam ", ""));
-        const text = `@${
-          message.author.split("@")[0]
-        } says hello ${message.chat.groupMetadata.participants.map(
-          (participant) => `\n🌚 @${participant.id.split("@")[0]}`
-        )}`;
-        const messages = [];
-        for (let i = 0; i < n; i++) {
-          messages.push(await cl.sendTextWithMentions(message.chatId, text));
+        if (message.body === "#spam") {
+          await cl.sendTextWithMentions(message.chatId, text);
+        } else {
+          const n = parseInt(message.body.replace("#spam ", ""));
+          const messages = [];
+          for (let i = 0; i < n; i++) {
+            messages.push(await cl.sendTextWithMentions(message.chatId, text));
+          }
+          await Promise.all(messages);
         }
-        await Promise.all(messages);
       }
     } else if (message.body.startsWith("#google")) {
       const query =
@@ -83,41 +82,22 @@ async function procMess(message) {
     } else if (message.body.startsWith("#join https://chat.whatsapp.com/")) {
       await cl.joinGroupViaLink(message.body);
       await cl.sendText(message.chatId, "Joined group");
-    } else if (
-      message.body === "#sticker" &&
-      message.quotedMsgObj &&
-      ["image", "video"].includes(message.quotedMsgObj.type)
-    ) {
-      await cl.sendText(message.chatId, "Processing image");
-      const mediaData = await decryptMedia(message.quotedMsgObj);
-      const dataUrl = `data:${
-        message.quotedMsgObj.mimetype
-      };base64,${mediaData.toString("base64")}`;
-      message.type === "image" &&
-        (await cl.sendImageAsSticker(message.chatId, dataUrl));
-      message.type === "video" &&
-        (await cl.sendMp4AsSticker(message.chatId, dataUrl));
-      await cl.reply(message.chatId, "Here is your sticker", message.id);
     } else if (message.body === "#leave") {
       const user = message.chat.groupMetadata.participants.find(
         (pat) => pat.id === message.author
       );
       if (user && user.isAdmin) {
-        await cl.reply(
-          message.chatId,
-          "Ab unko humshe rishta nhi rakhna hai\nto humari taraf se bhi koi zabardasti nhi hai",
-          message.id
-        );
+        await cl.sendText(message.chatId, leaveText);
         await cl.leaveGroup(message.chat.id);
       } else {
-        await cl.reply(message.chatId, "You no admin!", message.id);
+        await cl.sendText(message.chatId, "You no admin!");
       }
     }
   } else if (
     ["image", "video"].includes(message.type) &&
     message.caption === "#sticker"
   ) {
-    await cl.sendText(message.chatId, "Processing image");
+    await cl.sendText(message.chatId, "Processing sticker");
     const mediaData = await decryptMedia(message);
     const dataUrl = `data:${message.mimetype};base64,${mediaData.toString(
       "base64"
@@ -126,7 +106,7 @@ async function procMess(message) {
       (await cl.sendImageAsSticker(message.chatId, dataUrl));
     message.type === "video" &&
       (await cl.sendMp4AsSticker(message.chatId, dataUrl));
-    await cl.reply(message.chatId, "Here is your sticker", message.id);
+    await cl.sendText(message.chatId, "Here is your sticker");
   }
 }
 

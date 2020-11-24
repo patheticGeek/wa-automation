@@ -93,7 +93,7 @@ async function procMess(message) {
     }
   } else if (
     ["image", "video"].includes(message.type) &&
-    message.caption.toLowerCase() === "#sticker"
+    message.caption === "#sticker"
   ) {
     await cl.sendText(message.chatId, "Processing sticker");
     const mediaData = await decryptMedia(message);
@@ -101,7 +101,7 @@ async function procMess(message) {
       "base64"
     )}`;
     message.type === "image" &&
-      (await cl.sendImageAsStickerAsReply(message.chatId, dataUrl, message.id));
+      (await cl.sendImageAsSticker(message.chatId, dataUrl, message.id));
     message.type === "video" &&
       (await cl.sendMp4AsSticker(message.chatId, dataUrl));
   }

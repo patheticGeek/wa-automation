@@ -11,13 +11,14 @@ const helpText =
   process.env.HELP_TEXT ||
   `Commands:
 #sticker: write in caption of a image/video/gif to turn it into sticker
-#spam: tag everyone in a message in a group
+#spam: tag everyone in a message in a group (only works in a group)
 #join https://chat.whatsapp.com/shdkashdh: joing a group with invite link
-#leave: i hope you dont use this if you do make sure youre admin
-#help: To recive this same message
-#menu: Same as help but some people prefer it
+#leave: i hope you dont use this (only works in a group if sent by an admin)
+#help: to recive this same message
+#menu: same as help but some people prefer it
 
-Put '#nospam' in group description to stop spam commands
+Add '#nospam' in group description to stop spam commands
+All commands except #spam & #leave work in pm
 Made by: pathetic_geek (https://github.com/patheticGeek)
 `;
 
@@ -44,11 +45,16 @@ let cl = null;
 async function procMess(message) {
   if (message.type === "chat") {
     if (
-      helpOnInGroup.includes(message.body.toLowerCase()) ||
+      message.isGroupMsg &&
+      helpOnInGroup.includes(message.body.toLowerCase())
+    ) {
+      await cl.sendText(message.from, helpText);
+    } else if (
+      !message.isGroupMsg &&
       helpOnInPM.includes(message.body.toLowerCase())
     ) {
       await cl.sendText(message.from, helpText);
-    } else if (message.body === "#spam") {
+    } else if (message.isGroupMsg && message.body.toLowerCase() === "#spam") {
       if (
         message.chat.groupMetadata.desc &&
         message.chat.groupMetadata.desc.includes("#nospam")
@@ -67,8 +73,14 @@ async function procMess(message) {
       }
     } else if (message.body.startsWith("#join https://chat.whatsapp.com/")) {
       await cl.joinGroupViaLink(message.body);
-      await cl.sendText(message.chatId, "Joined group");
-    } else if (message.body === "#leave") {
+      await cl.reply(message.chatId, "Joined group", message.id);
+    } else if (message.body.toLowerCase() === "#nospam") {
+      await cl.reply(
+        message.chatId,
+        "Add #nospam in group description",
+        message.id
+      );
+    } else if (message.isGroupMsg && message.body.toLowerCase() === "#leave") {
       const user = message.chat.groupMetadata.participants.find(
         (pat) => pat.id === message.author
       );
@@ -76,36 +88,36 @@ async function procMess(message) {
         await cl.sendText(message.chatId, leaveText);
         await cl.leaveGroup(message.chat.id);
       } else {
-        await cl.sendText(message.chatId, "You no admin!");
+        await cl.reply(message.chatId, "You're not an admin!", message.id);
       }
     }
   } else if (
     ["image", "video"].includes(message.type) &&
-    message.caption === "#sticker"
+    message.caption.toLowerCase() === "#sticker"
   ) {
     await cl.sendText(message.chatId, "Processing sticker");
     const mediaData = await decryptMedia(message);
     const dataUrl = `data:${message.mimetype};base64,${mediaData.toString(
       "base64"
     )}`;
-    try {
-      message.type === "image" &&
-        (await cl.sendImageAsSticker(message.chatId, dataUrl));
-      message.type === "video" &&
-        (await cl.sendMp4AsSticker(message.chatId, dataUrl));
-    } catch (e) {
-      await cl.sendText(
-        message.chatId,
-        e.message || "Sticker size limit is 1Mb"
-      );
-    }
+    message.type === "image" &&
+      (await cl.sendImageAsStickerAsReply(message.chatId, dataUrl, message.id));
+    message.type === "video" &&
+      (await cl.sendMp4AsSticker(message.chatId, dataUrl));
   }
 }
 
 /**
  * Add message to process queue
  */
-const processMessage = (message) => queue.add(() => procMess(message));
+const processMessage = (message) =>
+  queue.add(async () => {
+    try {
+      procMess(message);
+    } catch (e) {
+      console.error(e);
+    }
+  });
 
 /**
  * Initialize client

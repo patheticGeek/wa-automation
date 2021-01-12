@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@open-wa/wa-automate": "^3.1.0",
+    "axios": "^0.21.1",
     "express": "^4.17.1",
     "nodemon": "^2.0.6",
     "p-queue": "^6.6.2"

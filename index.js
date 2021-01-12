@@ -3,6 +3,7 @@ const { create, decryptMedia, ev } = wa;
 const { default: PQueue } = require("p-queue");
 const fs = require("fs");
 const express = require("express");
+const axios = require("axios").default;
 
 const helpOnInPM = ["hello", "hi", "hii", "hey", "heyy", "#help", "#menu"];
 const helpOnInGroup = ["#help", "#menu"];
@@ -16,6 +17,12 @@ const helpText =
 #leave: i hope you dont use this (only works in a group if sent by an admin)
 #help: to recive this same message
 #menu: same as help but some people prefer it
+#run languages: Returns all languages supported
+#run {language}
+{code}: Run some code in some language
+eg.
+'#run node
+console.log('hello world');'
 
 Add '#nospam' in group description to stop spam commands
 All commands except #spam & #leave work in pm
@@ -71,6 +78,36 @@ async function procMess(message) {
         )}`;
         await cl.sendTextWithMentions(message.chatId, text);
       }
+    } else if (message.body === "#run languages") {
+      const response = await axios.get(
+        "https://emkc.org/api/v1/piston/versions"
+      );
+      const reply = response.data
+        .map((item) => `${item.name} - v${item.version}`)
+        .join("\n");
+      cl.sendText(message.chatId, reply);
+    } else if (message.body.startsWith("#run ")) {
+      const { chatId, body } = message;
+      try {
+        let msg = body.replace("#run ", "").split("\n");
+        const lang = msg.splice(0, 1)[0];
+        const source = msg.join("\n");
+        const response = await axios.post(
+          "https://emkc.org/api/v1/piston/execute",
+          {
+            language: lang,
+            source: source,
+          }
+        );
+        const { ran, language, output, version, code, message } = response.data;
+        const reply = `${
+          ran ? "Ran" : "Error running"
+        } with ${language} v${version}\nOutput:\n${output}`;
+        cl.sendText(chatId, reply);
+      } catch (e) {
+        console.log(e);
+        cl.sendText(chatId, "Unsupported language");
+      }
     } else if (message.body.startsWith("#join https://chat.whatsapp.com/")) {
       await cl.joinGroupViaLink(message.body);
       await cl.reply(message.chatId, "Joined group", message.id);
@@ -113,9 +150,9 @@ async function procMess(message) {
 const processMessage = (message) =>
   queue.add(async () => {
     try {
-      procMess(message);
+      await procMess(message);
     } catch (e) {
-      console.error(e);
+      console.log(e);
     }
   });
 

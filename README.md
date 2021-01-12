@@ -39,6 +39,14 @@ Set following config vars
 
 #menu: Same as help but some people prefer it
 
+#run languages: Returns all languages supported
+
+#run {language}
+{code}: Run some code in some language
+eg.
+'#run node
+console.log('hello world');'
+
 Add '#nospam' in group description to stop spam commands
 
 #### Warning:

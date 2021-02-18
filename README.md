@@ -2,6 +2,8 @@
 
 Whatsapp automation weekend project
 
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/patheticGeek/wa-automation)
+
 ## How to deploy
 
 1. Fork this repo.

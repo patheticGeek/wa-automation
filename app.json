@@ -1,0 +1,10 @@
+{
+  "name": "wa-automation",
+  "description": "Whatsapp automation weekend project",
+  "repository": "https://github.com/patheticGeek/wa-automation",
+  "keywords": [],
+  "builpacks": [
+    { "url": "heroku/nodejs" },
+    { "url": "https://github.com/jontewks/puppeteer-heroku-buildpack.git" }
+  ]
+}

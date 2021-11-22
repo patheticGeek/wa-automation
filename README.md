@@ -1,10 +1,11 @@
 # wa-automation
 
+> A better improved version of this is https://github.com/patheticGeek/upgraded-sniffle doesnt have all features but has clean code.
+
 Whatsapp automation weekend project
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/patheticGeek/wa-automation)
 
-> A better improved version of this is https://github.com/patheticGeek/upgraded-sniffle doesnt have all features but has clean code.
 
 ## How to deploy
 
